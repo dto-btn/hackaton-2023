@@ -28,6 +28,17 @@ Retrival-Augmented Generation (RAG):
 
 ## Developpers
 
+### file splitter
+
+Drop the payload into the `data/` folder and then just run from the root of this project
+
+```bash
+python util/split _payload.by
+```
+Resulting files will end up in `output/` folder.
+
+### setup virtual env
+
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
