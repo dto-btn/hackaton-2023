@@ -5,6 +5,8 @@ Microsoft Hackaton Activity of December 2023
 
 * **BITS** AI integration
   * we have access to API and can have subsets of data (or custom API calls created)
+  * <img src="img/image.png" width="350" height="325" />
+
 * **Archibus** AI integration
   * Limited API integration(?)
   * Could potentially have access to subsets of data(?)
@@ -22,3 +24,12 @@ Microsoft Hackaton Activity of December 2023
 Retrival-Augmented Generation (RAG):
 
 ![RAG](https://techcommunity.microsoft.com/t5/image/serverpage/image-id/478543iAEDA4F056963C391/image-size/large?v=v2&px=999)
+
+
+## Developpers
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt --upgrade
+```
