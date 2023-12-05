@@ -42,5 +42,5 @@ Resulting files will end up in `output/` folder.
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt --upgrade
+pip install -r util/requirements.txt --upgrade
 ```
