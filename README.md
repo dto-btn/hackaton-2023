@@ -28,6 +28,27 @@ Retrival-Augmented Generation (RAG):
 
 ## Developpers
 
+### search service using default index (no semantic search)
+
+```bash
+python util/test.py                          
+{
+  "id": "ef8095cf-23b3-4e46-9a2d-bca6177bbe4f",
+  "model": "gpt-4-32k",
+  "created": 1701870043,
+  "object": "extensions.chat.completion",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "From the retrieved documents, the following client names can be identified:\n\n1. Emploi et D\u00e9veloppement social Canada[doc1]\n2. Anciens Combattants Canada[doc2][doc3]\n3. Affaires mondiales Canada[doc4]\n4. Services aux Autochtones Canada[doc5]\n\nPlease note that only four unique client names are available in the retrieved documents.",
+        "end_turn": true,
+        "context": {
+...
+```
+
 ### file splitter
 
 Drop the payload into the `data/` folder and then just run from the root of this project
