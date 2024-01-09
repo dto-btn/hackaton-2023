@@ -18,6 +18,7 @@ Microsoft Hackaton Activity of December 2023
 * [Azure OpenAI Accelerators and Demo Assets](https://github.com/Azure/ai-solution-accelerators-list/tree/main/OpenAIDemos)
 * [LLM Grounding](https://techcommunity.microsoft.com/t5/fasttrack-for-azure/grounding-llms/ba-p/3843857#:~:text=What%20is%20Grounding%3F,relevance%20of%20the%20generated%20output)
 * [(Video) Quickly build and deploy OpenAI apps on Azure with your own data](https://www.youtube.com/watch?v=j8i-OM5kwiY)
+* [using function calling with Azure OpenAI](https://review.learn.microsoft.com/en-ca/azure/ai-services/openai/how-to/function-calling?branch=pr-en-us-256331&tabs=python)
 
 ### Cognitive Search
 
@@ -54,7 +55,7 @@ python util/test.py
 Drop the payload into the `data/` folder and then just run from the root of this project
 
 ```bash
-python util/split _payload.by
+python util/split _payload.py
 ```
 Resulting files will end up in `output/` folder.
 
@@ -64,4 +65,12 @@ Resulting files will end up in `output/` folder.
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r util/requirements.txt --upgrade
+```
+
+### working with the data
+
+Then you can run the app via:
+
+```bash
+flask --debug run --port 5002
 ```
