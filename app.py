@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 import json
 from openai import AzureOpenAI
 import os
@@ -69,6 +69,23 @@ tools = [
                 },
             },
         },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_br_information",
+                "description": "Gets information on a specific business request (BR) via it's BR number. It's a 5 or 6 digit number that can frequently be prepended by the letters BR, e.g. BR654321",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "br_number": {
+                            "type": "integer",
+                            "description": "The busines request (BR) number, it can consist of 5 or 6 digits, can sometimes be pre-pended by BR12345 for instance.",
+                        },
+                    },
+                    "required": ["br_number"],
+                },
+            },
+        },
     ]
 
 # Load the records into memory from the file data/data.json
@@ -78,7 +95,7 @@ with open('data/data.json', 'r') as file:
     records = data['results'][0]['items']
 
 def pretty_print_br(json_br):
-    return f"{json_br['br_number']} ({json_br['long_title']}) Required Implementation date: {json_br['req_implement_date']}, Forecasted Impl Date: {json_br['implement_target_date']}"
+    return f"{json_br['br_number']} ({json_br['long_title']}) Required Implementation date: {json_br['req_implement_date']}, Forecasted Impl Date: {json_br['implement_target_date']}, Status: {json_br['status_name']}, Client name: {json_br['client_name']}"
 
 def get_records_req_impl_by_year(year):
     """
@@ -128,6 +145,17 @@ def get_br_count_with_target_impl_date(valid: bool=True):
     
     return valid_records if valid else not_valid_records
 
+def get_br_information(br_number: int):
+    """
+    get information about a specific BR number
+    """
+    print(f"getting info for BR -> {br_number}")
+    for record in records:
+        if record['br_number'] == br_number:
+            return pretty_print_br(record)
+    # didn't find the record.
+    return "Didn't find any matching Business Request (BR) matching that number."
+
 @app.route('/chat', methods=['POST'])
 def chat() -> str:
     data = request.get_json()
@@ -152,7 +180,8 @@ def chat() -> str:
         available_functions = {
             "get_records_req_impl_by_year": get_records_req_impl_by_year,
             "get_br_count_with_target_impl_date": get_br_count_with_target_impl_date,
-            "get_forecasted_br_for_month": get_forecasted_br_for_month
+            "get_forecasted_br_for_month": get_forecasted_br_for_month,
+            "get_br_information": get_br_information
         }
 
         # Step 4: send the info for each function call and function response to the model
@@ -170,6 +199,8 @@ def chat() -> str:
                 prepared_args["valid"] = function_args["valid"]
             if "month" in function_args:
                 prepared_args["month"] = function_args["month"]
+            if "br_number" in function_args:
+                prepared_args["br_number"] = function_args["br_number"]
             
             # Call the function with the prepared arguments
             function_response = function_to_call(**prepared_args)
@@ -204,6 +235,10 @@ def chat() -> str:
         )  # get a new response from the model where it can see the function response
         return second_response.choices[0].message.content # type: ignore
     return response_message.content # type: ignore
+
+@app.route('/')  
+def index():  
+    return render_template('index.html')  
 
 if __name__ == '__main__':
     app.run(debug=True)
