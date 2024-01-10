@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request
 import json
 from openai import AzureOpenAI
 import os
+import re
 
 client = AzureOpenAI(
   azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"), # type: ignore
@@ -11,53 +12,14 @@ client = AzureOpenAI(
 
 app = Flask(__name__)
 
-# Load the records into memory from the file data/data.json
-with open('data/data.json', 'r') as file:
-    data = json.load(file)
-    # Assuming there is only one element in the 'results' list
-    records = data['results'][0]['items']
+_limit = 100
 
-def pretty_print_br(json_br):
-    return f"{json_br['br_number']} ({json_br['long_title']}) Required Implementation date: {json_br['req_implement_date']}"
-
-def get_records_implemented_by_year(year):
-    print("calling function to get records by year implemented ...")
-    # Extract the last two digits of the year
-    year_suffix = '-' + year[2:]
-    
-    # Filter records that have a 'req_implement_date' ending with the specified year_suffix
-    filtered_records = [record for record in records if record.get('req_implement_date', '').endswith(year_suffix)]
-    
-    # Return the filtered records as a JSON response
-    return [pretty_print_br(br) for br in filtered_records[:10]]
-
-@app.route('/implemented', methods=['GET'])
-def get_records_by_year_api():
-    '''
-    just a fake API to mimick the BITs (BRs) system's API that is modifiable by their team so it should be 
-    flexible enough to mimick the sort of request
-    '''
-    # Extract the year parameter from the query string
-    year_suffix = request.args.get('year', '')
-    
-    # Validate if the year parameter is provided correctly
-    if not year_suffix or len(year_suffix) != 4 or not year_suffix.isdigit():
-        return jsonify({'error': 'Invalid year parameter. Please specify a 4-digit year.'}), 400
-    
-    # Return the filtered records as a JSON response
-    return get_records_implemented_by_year(year_suffix)
-
-@app.route('/chat', methods=['POST'])
-def chat() -> str:
-    data = request.get_json()
-    content = data.get('content')
-    messages = [{"role": "user", "content": content}]
-    tools = [
+tools = [
         {
             "type": "function",
             "function": {
-                "name": "get_records_implemented_by_year",
-                "description": "Get the Business Request (BR) records that were implemented in a given year",
+                "name": "get_records_req_impl_by_year",
+                "description": "Get the Business Request (BR) records that are due to be implemented by given year",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -69,8 +31,111 @@ def chat() -> str:
                     "required": ["year"],
                 },
             },
-        }
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_br_count_with_target_impl_date",
+                "description": "Get the amount of business records (BR) that have a valid (or not) target implementation date (TID). Returns an amount of BRs that matches the criteria",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "valid": {
+                            "type": "boolean",
+                            "description": "If we are checking for BRs with valid target implementation dates (TID) or not.",
+                        },
+                    },
+                },
+            },
+        },
+        {
+            "type": "function",
+            "function": {
+                "name": "get_forecasted_br_for_month",
+                "description": "Get the Business Request (BR) records that are forecasted for a given month (and optionally a year, else uses the current year)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "month": {
+                            "type": "string",
+                            "description": "The month the Business Request (BR) is forecasted to be implemented in, e.g. April, March, Jun, Dec, FEB, etc.",
+                        },
+                        "year": {
+                            "type": "string",
+                            "description": "The year the Business Request (BR) is forecasted to be implemented in, e.g. 2024.",
+                        }
+                    },
+                    "required": ["month"],
+                },
+            },
+        },
     ]
+
+# Load the records into memory from the file data/data.json
+with open('data/data.json', 'r') as file:
+    data = json.load(file)
+    # Assuming there is only one element in the 'results' list
+    records = data['results'][0]['items']
+
+def pretty_print_br(json_br):
+    return f"{json_br['br_number']} ({json_br['long_title']}) Required Implementation date: {json_br['req_implement_date']}, Forecasted Impl Date: {json_br['implement_target_date']}"
+
+def get_records_req_impl_by_year(year):
+    """
+    Required implementation date for BR
+    """
+    print("calling function to get records req implementation date.")
+    # Extract the last two digits of the year
+    year_suffix = '-' + year[2:]
+    
+    # Filter records that have a 'req_implement_date' ending with the specified year_suffix
+    filtered_records = [record for record in records if record.get('req_implement_date', '').endswith(year_suffix)]
+    
+    # Return the filtered records as a JSON response
+    return [pretty_print_br(br) for br in filtered_records[:_limit]]
+
+def get_forecasted_br_for_month(month, year: str="2024"):
+    """
+    get the forcasted BRs information for a given month (and year)
+    """
+    print("calling BR forecast for month")
+    # Extract the last two digits of the year
+    year_suffix = '-' + year[2:]
+    month_suffix = '-' + str.upper(month[:3])
+    pattern = r"\b\d{2}"+ month_suffix + year_suffix + r"\b"
+    filtered_records = [record for record in records if re.match(pattern, record['implement_target_date'])]
+    
+    # Return the filtered records as a JSON response
+    return [pretty_print_br(br) for br in filtered_records[:_limit]]
+
+def get_br_count_with_target_impl_date(valid: bool=True):
+    """
+    returns the BR counts of all the BRs with either a valid/invalid TID (target impl date)
+    """
+    print(f"checking VALID BRs ({valid}). Current total records to filter is {len(records)}")
+    # Define the regex pattern  
+    pattern = r"\b\d{2}-[A-Z]{3}-\d{2}\b"
+    valid_records = 0
+    not_valid_records = 0
+    for record in records:
+        if record['implement_target_date']:
+            if re.match(pattern, record['implement_target_date']):
+                valid_records += 1
+            else:
+                not_valid_records += 1
+        else:
+            not_valid_records += 1
+    
+    return valid_records if valid else not_valid_records
+
+@app.route('/chat', methods=['POST'])
+def chat() -> str:
+    data = request.get_json()
+    content = data.get('content')
+    messages = [
+        {"role": "system", "content": "You are a Shared Services Canada (SSC) assistant that helps to find information about Business Request (BR) in the BITS system."},
+        {"role": "user", "content": content}]
+
     response = client.chat.completions.create(
         model="gpt-4-1106",
         messages=messages, # type: ignore
@@ -78,25 +143,37 @@ def chat() -> str:
         tool_choice="auto",  # auto is default, but we'll be explicit
     )
     response_message = response.choices[0].message
-    print(response)
+
     tool_calls = response_message.tool_calls
     # Step 2: check if the model wanted to call a function
     if tool_calls:
         # Step 3: call the function
         # Note: the JSON response may not always be valid; be sure to handle errors
         available_functions = {
-            "get_records_implemented_by_year": get_records_implemented_by_year,
-        }  # only one function in this example, but you can have multiple
-        # Append the assistant's response to the messages list  
+            "get_records_req_impl_by_year": get_records_req_impl_by_year,
+            "get_br_count_with_target_impl_date": get_br_count_with_target_impl_date,
+            "get_forecasted_br_for_month": get_forecasted_br_for_month
+        }
+
         # Step 4: send the info for each function call and function response to the model
         for tool_call in tool_calls:
             function_name = tool_call.function.name
             function_to_call = available_functions[function_name]
             function_args = json.loads(tool_call.function.arguments)
-            function_response = function_to_call(
-                year=function_args.get("year"), # type: ignore
-            ) 
-            # Append a message to indicate the assistant is calling the function  
+
+            # Prepare the arguments for the function call
+            prepared_args = {}
+            # Check if the function requires any arguments and add them to the prepared_args dictionary
+            if "year" in function_args:
+                prepared_args["year"] = function_args["year"]
+            if "valid" in function_args:
+                prepared_args["valid"] = function_args["valid"]
+            if "month" in function_args:
+                prepared_args["month"] = function_args["month"]
+            
+            # Call the function with the prepared arguments
+            function_response = function_to_call(**prepared_args)
+            # Append a message to indicate the assistant is calling the function
             messages.append({
                 "role": "assistant",
                 "content": "",
@@ -111,7 +188,7 @@ def chat() -> str:
                     }
                 ]
             })
-            response_as_string = "\n".join(function_response)
+            response_as_string = "\n".join(function_response) if function_response is list else str(function_response)
             messages.append(
                 {
                     "tool_call_id": tool_call.id,
@@ -130,4 +207,3 @@ def chat() -> str:
 
 if __name__ == '__main__':
     app.run(debug=True)
-
