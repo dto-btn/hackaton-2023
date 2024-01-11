@@ -14,79 +14,8 @@ app = Flask(__name__)
 
 _limit = 100
 
-tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_records_req_impl_by_year",
-                "description": "Get the Business Request (BR) records that are due to be implemented by given year",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "year": {
-                            "type": "string",
-                            "description": "The year the Business Request (BR) was implemented in, e.g. 2024.",
-                        },
-                    },
-                    "required": ["year"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_br_count_with_target_impl_date",
-                "description": "Get the amount of business records (BR) that have a valid (or not) target implementation date (TID). Returns an amount of BRs that matches the criteria",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "valid": {
-                            "type": "boolean",
-                            "description": "If we are checking for BRs with valid target implementation dates (TID) or not.",
-                        },
-                    },
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_forecasted_br_for_month",
-                "description": "Get the Business Request (BR) records that are forecasted for a given month (and optionally a year, else uses the current year)",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "month": {
-                            "type": "string",
-                            "description": "The month the Business Request (BR) is forecasted to be implemented in, e.g. April, March, Jun, Dec, FEB, etc.",
-                        },
-                        "year": {
-                            "type": "string",
-                            "description": "The year the Business Request (BR) is forecasted to be implemented in, e.g. 2024.",
-                        }
-                    },
-                    "required": ["month"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_br_information",
-                "description": "Gets information on a specific business request (BR) via it's BR number. It's a 5 or 6 digit number that can frequently be prepended by the letters BR, e.g. BR654321",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "br_number": {
-                            "type": "integer",
-                            "description": "The busines request (BR) number, it can consist of 5 or 6 digits, can sometimes be pre-pended by BR12345 for instance.",
-                        },
-                    },
-                    "required": ["br_number"],
-                },
-            },
-        },
-    ]
+with open('tools.json', 'r') as file:
+    tools = json.load(file)
 
 # Load the records into memory from the file data/data.json
 with open('data/data.json', 'r') as file:
@@ -236,9 +165,12 @@ def chat() -> str:
         return second_response.choices[0].message.content # type: ignore
     return response_message.content # type: ignore
 
-@app.route('/')  
-def index():  
-    return render_template('index.html')  
+@app.route('/')
+def index():
+    '''
+    servres a basic index.html pages that interacts with the /chat endpoint
+    '''
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)
