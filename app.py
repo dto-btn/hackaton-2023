@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 import json
 from openai import AzureOpenAI
 import os
@@ -14,62 +14,8 @@ app = Flask(__name__)
 
 _limit = 100
 
-tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_records_req_impl_by_year",
-                "description": "Get the Business Request (BR) records that are due to be implemented by given year",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "year": {
-                            "type": "string",
-                            "description": "The year the Business Request (BR) was implemented in, e.g. 2024.",
-                        },
-                    },
-                    "required": ["year"],
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_br_count_with_target_impl_date",
-                "description": "Get the amount of business records (BR) that have a valid (or not) target implementation date (TID). Returns an amount of BRs that matches the criteria",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "valid": {
-                            "type": "boolean",
-                            "description": "If we are checking for BRs with valid target implementation dates (TID) or not.",
-                        },
-                    },
-                },
-            },
-        },
-        {
-            "type": "function",
-            "function": {
-                "name": "get_forecasted_br_for_month",
-                "description": "Get the Business Request (BR) records that are forecasted for a given month (and optionally a year, else uses the current year)",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "month": {
-                            "type": "string",
-                            "description": "The month the Business Request (BR) is forecasted to be implemented in, e.g. April, March, Jun, Dec, FEB, etc.",
-                        },
-                        "year": {
-                            "type": "string",
-                            "description": "The year the Business Request (BR) is forecasted to be implemented in, e.g. 2024.",
-                        }
-                    },
-                    "required": ["month"],
-                },
-            },
-        },
-    ]
+with open('tools.json', 'r') as file:
+    tools = json.load(file)
 
 # Load the records into memory from the file data/data.json
 with open('data/data.json', 'r') as file:
@@ -78,7 +24,7 @@ with open('data/data.json', 'r') as file:
     records = data['results'][0]['items']
 
 def pretty_print_br(json_br):
-    return f"{json_br['br_number']} ({json_br['long_title']}) Required Implementation date: {json_br['req_implement_date']}, Forecasted Impl Date: {json_br['implement_target_date']}"
+    return f"{json_br['br_number']} ({json_br['long_title']}) Required Implementation date: {json_br['req_implement_date']}, Forecasted Impl Date: {json_br['implement_target_date']}, Status: {json_br['status_name']}, Client name: {json_br['client_name']}"
 
 def get_records_req_impl_by_year(year):
     """
@@ -128,6 +74,17 @@ def get_br_count_with_target_impl_date(valid: bool=True):
     
     return valid_records if valid else not_valid_records
 
+def get_br_information(br_number: int):
+    """
+    get information about a specific BR number
+    """
+    print(f"getting info for BR -> {br_number}")
+    for record in records:
+        if record['br_number'] == br_number:
+            return pretty_print_br(record)
+    # didn't find the record.
+    return "Didn't find any matching Business Request (BR) matching that number."
+
 @app.route('/chat', methods=['POST'])
 def chat() -> str:
     data = request.get_json()
@@ -152,7 +109,8 @@ def chat() -> str:
         available_functions = {
             "get_records_req_impl_by_year": get_records_req_impl_by_year,
             "get_br_count_with_target_impl_date": get_br_count_with_target_impl_date,
-            "get_forecasted_br_for_month": get_forecasted_br_for_month
+            "get_forecasted_br_for_month": get_forecasted_br_for_month,
+            "get_br_information": get_br_information
         }
 
         # Step 4: send the info for each function call and function response to the model
@@ -170,6 +128,8 @@ def chat() -> str:
                 prepared_args["valid"] = function_args["valid"]
             if "month" in function_args:
                 prepared_args["month"] = function_args["month"]
+            if "br_number" in function_args:
+                prepared_args["br_number"] = function_args["br_number"]
             
             # Call the function with the prepared arguments
             function_response = function_to_call(**prepared_args)
@@ -204,6 +164,13 @@ def chat() -> str:
         )  # get a new response from the model where it can see the function response
         return second_response.choices[0].message.content # type: ignore
     return response_message.content # type: ignore
+
+@app.route('/')
+def index():
+    '''
+    servres a basic index.html pages that interacts with the /chat endpoint
+    '''
+    return render_template('index.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

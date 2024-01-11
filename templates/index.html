@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BITS AI assistant</title>
+    <style>
+        html, body {
+            background: #f2f2f2;
+            display: flex;
+            flex-direction: column;
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width:100%;
+            box-sizing: border-box;
+            font-family: Segoe UI,-apple-system,BlinkMacSystemFont,Roboto,Oxygen,Ubuntu,Cantarell,Fira Sans,Droid Sans,Helvetica Neue,sans-serif;
+        }
+        .header {
+            background:#474747;
+            color:white;
+            display: flex;
+            justify-content: center;
+            vertical-align: top;
+        }
+        .header > h1 {
+            margin-bottom: 0;
+        }
+        .container{
+            display: flex;  
+            flex-direction: column; /* Add this line to stack children vertically */  
+            width: 100%; /* Make sure the container takes up the full width */  
+            align-items: center; /* Center children horizontally */  
+            justify-content: center; /* Center children vertically */ 
+            padding-top: 20px;
+            flex-grow: 1;
+        }
+        .chat-container {
+            max-height: 1024px;
+            max-width: 1028px;
+            width: 100%;
+            overflow-y: auto;
+            padding-left: 24px;
+            padding-right: 24px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+            align-items: center;
+        }
+        .user-msg-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 20px;
+            max-width: 80%;
+            margin-left: auto;
+        }
+        .user-msg {
+            padding: 20px;
+            background: #e8ebfa;
+            border-radius: 8px;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.14), 0px 0px 2px rgba(0, 0, 0, 0.12);
+            outline: transparent solid 1px;
+        }
+        .answer-msg-container {
+            display: flex;
+            flex-flow: column;
+            margin-bottom: 20px;
+            max-width: 80%;
+        }
+        .answer-msg {
+            padding: 20px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.14), 0px 0px 2px rgba(0, 0, 0, 0.12);
+            outline: transparent solid 1px;
+        }
+        .chat {
+            width: 600px;
+        }
+        .chat-box {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        .question-container {
+            padding-bottom: 20px;
+        }
+    </style>
+    <script type="module" src="https://unpkg.com/@fluentui/web-components"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link rel="icon" type="image/x-icon" href="{{url_for('static', filename='favicon.ico')}}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+        function sendMessage() {
+            var userInput = document.getElementById('user-input');  
+            var message = userInput.value;  
+            userInput.value = ''; // Clear input field  
+
+            // Display the user's message in the chat box
+            var chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML += '<div class="user-msg-container"><div class="user-msg">' + message + '</div></div>';
+
+            // Send the message to the Flask server
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content: message })
+            })
+            .then(response => response.text())
+            .then(text => {
+                // Display the chatbot's response in the chat box
+                chatBox.innerHTML += '<div class="answer-msg-container"><div class="answer-msg">' + marked.parse(text) + '</div></div>';
+                // Scroll to the bottom of the chat box
+                chatBox.scrollTop = chatBox.scrollHeight;
+            })
+            .catch(error => console.error('Error:', error));
+        } 
+    </script>
+</head>
+<body>
+<header class="header"><h1>BITS AI assistant</h1></header>
+<div class="container">
+    <div id="chat-container" class="chat-container">
+        <div id="chat-box" class="chat-box">
+            <!-- Chat messages will appear here -->
+        </div>
+    </div>
+    <div class="question-container">
+        <fluent-text-area class="chat" id="user-input" placeholder="Type your question..."></fluent-text-area>
+        <fluent-button onclick="sendMessage()">Send</fluent-button>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var userInput = document.getElementById('user-input');
+    var sendButton = document.querySelector('fluent-button'); // Make sure this selector matches your "Send" button
+
+    // Event listener for Enter key on the fluent-text-area
+    userInput.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault(); // Prevent the default action to avoid form submission or line breaks
+            sendMessage(); // Call the sendMessage function
+        }
+    });
+});
+</script>
+
+</body>
+</html>
