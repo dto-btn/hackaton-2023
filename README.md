@@ -74,3 +74,26 @@ Then you can run the app via:
 ```bash
 flask --debug run --port 5002
 ```
+
+## GEDS API Information
+
+###  You can find the API documents here:
+
+TEST
+https://geds20api-sage20api.itsso.gc.ca/gapi/v2/doc
+
+PRODUCTION
+https://gcdirectory-gcannuaire.ssc-spc.gc.ca/gapi/v2/doc
+
+
+If your application is in the public domain (not GC internal network) you can access production from here:
+
+https://api.geds-sage.gc.ca/gapi/v2
+
+Same applies for the documentation:
+
+https://api.geds-sage.gc.ca/gapi/v2/doc 
+
+However, you will need to change the URL for the swagger.json to :
+
+https://api.geds-sage.gc.ca/gapi/v2/swagger.json
