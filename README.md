@@ -67,6 +67,14 @@ source .venv/bin/activate
 pip install -r util/requirements.txt --upgrade
 ```
 
+### export environment variables
+
+```bash
+export AZURE_OPENAI_ENDPOINT="our openai endpoint"
+export AZURE_OPENAI_API_KEY="our openai key"
+export API_TOKEN="our GEDS api token here"
+```
+
 ### working with the data
 
 Then you can run the app via:

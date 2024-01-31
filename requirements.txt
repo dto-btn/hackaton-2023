@@ -1,3 +1,4 @@
 Flask
 openai
 python-dotenv
+urllib3==1.26.18 # this version is required for the GEDS API to work

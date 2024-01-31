@@ -3,13 +3,18 @@ import json
 from openai import AzureOpenAI
 import os
 import re
+import requests
+
 
 client = AzureOpenAI(
   azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"), # type: ignore
   api_key=os.getenv("AZURE_OPENAI_KEY"),
   api_version="2023-12-01-preview"
 )
-
+# messages stored as a global variable to enable conversation history
+messages = [  
+    {"role": "system", "content": "You are a Shared Services Canada (SSC) assistant that helps to find information about Business Request (BR) in the BITS system."}  
+]
 app = Flask(__name__)
 
 _limit = 100
@@ -85,14 +90,84 @@ def get_br_information(br_number: int):
     # didn't find the record.
     return "Didn't find any matching Business Request (BR) matching that number."
 
-@app.route('/chat', methods=['POST'])
-def chat() -> str:
+def get_employee_information(employee_lastname: str = "", employee_firstname: str = ""):
+    """
+    get information about a specific employee
+    """
+    print(f"getting info for employee -> {employee_firstname} {employee_lastname}")
+    # Check if the last name is provided, otherwise request it
+    if not employee_lastname:
+        return "Please provide a last name to search for an employee."
+
+    # Check if the first name is provided
+    if employee_firstname:
+        search_value = f"{employee_lastname}%2C{employee_firstname}"
+    else:
+        search_value = employee_lastname
+
+    url = (
+        "https://api.geds-sage.gc.ca/gapi/v2/employees?"
+        f"searchValue={search_value}&searchField=9&searchCriterion=2&searchScope=sub&searchFilter=2&maxEntries=5&pageNumber=1&returnOrganizationInformation=yes"
+    )
+
+    payload = {}
+    api_token = os.getenv("API_TOKEN")
+    headers = {
+        'X-3scale-proxy-secret-token': api_token,
+        'Accept': 'application/json'
+    }
+
+    response = requests.request("GET", url, headers=headers, data=payload)
+
+    # Check if the response was successful
+    if response.status_code == 200:
+        # Check if the response contains multiple employees with the same last name
+        if len(json.loads(response.text)) > 1 and not employee_firstname:
+            return "Found multiple employees with that last name. Please provide the first name as well. However, here are some of the first results: " + response.text
+        # Check if the response contains multiple employees with the same first and last name
+        elif len(json.loads(response.text)) > 1:
+            return "Found multiple employees with that name. Here are the results: " + response.text
+        else:
+            return response.text
+    else:
+        return "Didn't find any matching employee with that name."
+
+def get_employee_by_phone_number(employee_phone_number: str):
+    """
+    get information about a specific employee by phone number
+    """
+    print(f"getting info for employee with phone number-> {employee_phone_number}")
+    # if phone number doesnt contain "-", add it
+    if "-" not in employee_phone_number:
+        employee_phone_number = employee_phone_number[:3] + "-" + employee_phone_number[3:6] + "-" + employee_phone_number[6:]
+        
+    url = (
+        "https://api.geds-sage.gc.ca/gapi/v2/employees?"
+        f"searchValue={employee_phone_number}&searchField=9&searchCriterion=2&searchScope=sub&searchFilter=2&maxEntries=5&pageNumber=1&returnOrganizationInformation=yes"
+    )
+
+    payload = {}
+    api_token = os.getenv("API_TOKEN")
+    headers = {
+        'X-3scale-proxy-secret-token': api_token,
+        'Accept': 'application/json'
+    }
+
+    response = requests.request("GET", url, headers=headers, data=payload)
+
+    # Check if the response was successful
+    if response.status_code == 200:
+        return response.text
+    else:
+        return "Didn't find any matching employee with that phone number."
+
+@app.route('/chat', methods=['POST']) # type: ignore
+def chat():
+    global messages
     data = request.get_json()
     content = data.get('content')
-    messages = [
-        {"role": "system", "content": "You are a Shared Services Canada (SSC) assistant that helps to find information about Business Request (BR) in the BITS system."},
-        {"role": "user", "content": content}]
 
+    messages.append({"role": "user", "content": content})
     response = client.chat.completions.create(
         model="gpt-4-1106",
         messages=messages, # type: ignore
@@ -100,7 +175,8 @@ def chat() -> str:
         tool_choice="auto",  # auto is default, but we'll be explicit
     )
     response_message = response.choices[0].message
-
+    if response_message.content is not None:  
+        messages.append({"role": "assistant", "content": response_message.content}) 
     tool_calls = response_message.tool_calls
     # Step 2: check if the model wanted to call a function
     if tool_calls:
@@ -110,7 +186,9 @@ def chat() -> str:
             "get_records_req_impl_by_year": get_records_req_impl_by_year,
             "get_br_count_with_target_impl_date": get_br_count_with_target_impl_date,
             "get_forecasted_br_for_month": get_forecasted_br_for_month,
-            "get_br_information": get_br_information
+            "get_br_information": get_br_information,
+            "get_employee_information": get_employee_information,
+            "get_employee_by_phone_number": get_employee_by_phone_number
         }
 
         # Step 4: send the info for each function call and function response to the model
@@ -130,7 +208,12 @@ def chat() -> str:
                 prepared_args["month"] = function_args["month"]
             if "br_number" in function_args:
                 prepared_args["br_number"] = function_args["br_number"]
-            
+            if "employee_firstname" in function_args:
+                prepared_args["employee_firstname"] = function_args["employee_firstname"]
+            if "employee_lastname" in function_args:
+                prepared_args["employee_lastname"] = function_args["employee_lastname"]
+            if "employee_phone_number" in function_args:
+                prepared_args["employee_phone_number"] = function_args["employee_phone_number"]
             # Call the function with the prepared arguments
             function_response = function_to_call(**prepared_args)
             # Append a message to indicate the assistant is calling the function
@@ -146,7 +229,7 @@ def chat() -> str:
                             "arguments": json.dumps(function_args)
                         }
                     }
-                ]
+                ] # type: ignore
             })
             response_as_string = "\n".join(function_response) if function_response is list else str(function_response)
             messages.append(
@@ -157,13 +240,14 @@ def chat() -> str:
                     "content": response_as_string,
                 }
             )  # extend conversation with function response
-        print(messages)
+        
         second_response = client.chat.completions.create(
-            model="gpt-4-1106",
+            model="gpt-4-32k",
             messages=messages, # type: ignore
         )  # get a new response from the model where it can see the function response
         return second_response.choices[0].message.content # type: ignore
     return response_message.content # type: ignore
+       
 
 @app.route('/')
 def index():
@@ -173,4 +257,4 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True) 

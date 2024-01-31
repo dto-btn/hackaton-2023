@@ -69,5 +69,42 @@
         "required": ["br_number"]
       }
     }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_employee_information",
+      "description": "Gets information on a specific employee by their name, it typically consists of a first name (given name) and last name (surname) of an employee, e.g. John Smith",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "employee_firstname": {
+            "type": "string",
+            "description": "The first name (given name) of an employee, e.g. John, Daniel, or Mary"
+          },
+          "employee_lastname": {
+            "type": "string",
+            "description": "The last name (surname) of an employee, e.g. Smith, Johnson, or Jones"
+          }
+        }
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "get_employee_by_phone_number",
+      "description": "Gets information on a specific employee by their phone number, it typically consists of a 10 digit phone number, e.g. 123-456-7890 or 1234567890",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "employee_phone_number": {
+            "type": "string",
+            "description": "The phone number of an employee, e.g. 123-456-7890 or 1234567890"
+          }
+        },
+        "required": ["employee_phone_number"]
+      }
+    }
   }
 ]
