@@ -13,7 +13,7 @@ client = AzureOpenAI(
 )
 # messages stored as a global variable to enable conversation history
 messages = [  
-    {"role": "system", "content": "You are a Shared Services Canada (SSC) assistant that helps to find information about Business Request (BR) in the BITS system."}  
+    {"role": "system", "content": "You are a Shared Services Canada (SSC) assistant that helps to find information about Business Request (BR) in the BITS system, information on employees, and any other questions users might have."}  
 ]
 app = Flask(__name__)
 
@@ -247,7 +247,14 @@ def chat():
         )  # get a new response from the model where it can see the function response
         return second_response.choices[0].message.content # type: ignore
     return response_message.content # type: ignore
-       
+
+@app.route('/clear', methods=['POST'])
+def clear():
+    global messages
+    messages = [  
+    {"role": "system", "content": "You are a Shared Services Canada (SSC) assistant that helps to find information about Business Request (BR) in the BITS system, information on employees, and any other questions users might have."}  
+]
+    return jsonify({"status": "success"})
 
 @app.route('/')
 def index():

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>BITS AI assistant</title>
+    <title>SSC Assistant (BITS, GEDS, GPT-4)</title>
     <style>
         html, body {
             background: #f2f2f2;
@@ -115,11 +115,23 @@
                 chatBox.scrollTop = chatBox.scrollHeight;
             })
             .catch(error => console.error('Error:', error));
-        } 
+        }
+        function clearChat() {  
+            // Clear the chat box  
+            var chatBox = document.getElementById('chat-box');  
+            chatBox.innerHTML = '';  
+            
+            // Send a POST request to the /clear endpoint  
+            fetch('/clear', {    
+                method: 'POST'  
+            })    
+            .catch(error => console.error('Error:', error));    
+        }  
+
     </script>
 </head>
 <body>
-<header class="header"><h1>BITS AI assistant</h1></header>
+<header class="header"><h1>SSC Assistant (BITS, GEDS, GPT-4)</h1></header>
 <div class="container">
     <div id="chat-container" class="chat-container">
         <div id="chat-box" class="chat-box">
@@ -127,6 +139,7 @@
         </div>
     </div>
     <div class="question-container">
+        <fluent-button onclick="clearChat()">Clear</fluent-button>
         <fluent-text-area class="chat" id="user-input" placeholder="Type your question..."></fluent-text-area>
         <fluent-button onclick="sendMessage()">Send</fluent-button>
     </div>
